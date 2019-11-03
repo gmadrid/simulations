@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rand::distributions::{Uniform};
+use rand::distributions::Uniform;
 use rand::Rng;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -17,7 +17,7 @@ impl OrchardDie {
     fn roll() -> OrchardDie {
         let range = Uniform::from(0..6);
         let mut rng = rand::thread_rng();
-        
+
         use OrchardDie::*;
         match rng.sample(range) {
             0 => Yellow,
@@ -44,7 +44,11 @@ struct Game {
 
 impl Game {
     fn new() -> Game {
-        let mut game = Game { left: HashMap::new(), raven: RAVEN_PATH_LENGTH, turns: 0 };
+        let mut game = Game {
+            left: HashMap::new(),
+            raven: RAVEN_PATH_LENGTH,
+            turns: 0,
+        };
 
         use OrchardDie::*;
 
@@ -57,10 +61,8 @@ impl Game {
     }
 
     fn done(&self) -> bool {
-        self.raven == 0 ||
-            self.left.iter().all({ |(_, num)| *num == 0 })
+        self.raven == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
     }
-
 
     fn decrement(&mut self, die: OrchardDie) {
         let val = self.left[&die];
@@ -71,9 +73,13 @@ impl Game {
 
     fn find_max_die(&self) -> OrchardDie {
         // unwrap: okay because self.left will never be empty.
-        *self.left.iter().max_by(|(_, v1), (_, v2)| v1.cmp(v2)).unwrap().0
+        *self
+            .left
+            .iter()
+            .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
+            .unwrap()
+            .0
     }
-      
 
     fn take_turn(&mut self) {
         self.turns += 1;
@@ -116,7 +122,12 @@ fn monte_carlo() {
             victories += 1;
         }
     }
-    println!("\n{}/{} => {}", victories, times, f64::from(victories) / f64::from(times));
+    println!(
+        "\n{}/{} => {}",
+        victories,
+        times,
+        f64::from(victories) / f64::from(times)
+    );
     println!("Avg turns: {}", f64::from(total_turns) / f64::from(times));
 }
 
