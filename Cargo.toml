@@ -12,4 +12,5 @@ default-run = "sherlock"
 name = "simulations"
 
 [dependencies]
+itertools = "0.8.1"
 rand = "0.7.2"
