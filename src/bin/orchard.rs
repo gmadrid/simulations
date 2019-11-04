@@ -3,6 +3,30 @@ use std::collections::HashMap;
 use rand::distributions::Uniform;
 use rand::Rng;
 
+struct Variation {
+    init_fruits: usize,
+    raven_path: usize,
+    basket_times: usize,
+}
+
+impl Variation {
+    fn little_game() -> Variation {
+        Variation {
+            init_fruits: 4,
+            raven_path: 5,
+            basket_times: 1,
+        }
+    }
+
+    fn big_game() -> Variation {
+        Variation {
+            init_fruits: 10,
+            raven_path: 9,
+            basket_times: 2,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum OrchardDie {
     Yellow,
@@ -31,37 +55,37 @@ impl OrchardDie {
     }
 }
 
-const RAVEN_PATH_LENGTH: u8 = 5;
-
-type FruitLeft = HashMap<OrchardDie, u8>;
+type FruitLeft = HashMap<OrchardDie, usize>;
 
 #[derive(Debug)]
 struct Game {
     left: FruitLeft,
-    raven: u8,
+    raven_path: usize,
     turns: u16,
+    basket_times: usize,
 }
 
 impl Game {
-    fn new() -> Game {
+    fn new(variation: &Variation) -> Game {
         let mut game = Game {
             left: HashMap::new(),
-            raven: RAVEN_PATH_LENGTH,
+            raven_path: variation.raven_path,
             turns: 0,
+            basket_times: variation.basket_times,
         };
 
         use OrchardDie::*;
 
-        game.left.insert(Yellow, 4);
-        game.left.insert(Green, 4);
-        game.left.insert(Purple, 4);
-        game.left.insert(Red, 4);
+        game.left.insert(Yellow, variation.init_fruits);
+        game.left.insert(Green, variation.init_fruits);
+        game.left.insert(Purple, variation.init_fruits);
+        game.left.insert(Red, variation.init_fruits);
 
         game
     }
 
     fn done(&self) -> bool {
-        self.raven == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
+        self.raven_path == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
     }
 
     fn decrement(&mut self, die: OrchardDie) {
@@ -87,18 +111,22 @@ impl Game {
         let roll = OrchardDie::roll();
         match roll {
             Yellow | Green | Purple | Red => self.decrement(roll),
-            Basket => self.decrement(self.find_max_die()),
-            Raven => self.raven -= 1,
+            Basket => {
+                for _ in 0..self.basket_times {
+                    self.decrement(self.find_max_die());
+                }
+            }
+            Raven => self.raven_path -= 1,
         }
     }
 
     fn achieved_victory(&self) -> bool {
-        self.done() && self.raven > 0
+        self.done() && self.raven_path > 0
     }
 }
 
 fn run_simulation() -> (bool, u16) {
-    let mut game = Game::new();
+    let mut game = Game::new(&Variation::big_game());
 
     while !game.done() {
         game.take_turn();
