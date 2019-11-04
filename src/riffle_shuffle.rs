@@ -15,36 +15,51 @@ pub fn riffle_shuffle<T>(deck: &[T]) -> Vec<T>
 where
     T: Clone,
 {
-    // NOTE: we can probably make this faster by eliminating one of the sorts and replacing it
-    //       with a merge().
-    let range = Uniform::from(0.0..1.0);
-    let mut rng = rand::thread_rng();
+    shuffle_with_samples(deck, random_samples(deck.len()))
+}
 
-    // Start by generating a vector of random numbers from 0..1.
-    let mut b= (0..deck.len())
-        .into_iter()
-        .map({ |_| rng.sample(range) })
-        .collect_vec();
-
+// For testability, we separate out the random part from the deterministic part.
+fn shuffle_with_samples<T>(deck: &[T], mut samples: Vec<f32>) -> Vec<T>
+where
+    T: Clone,
+{
     // unwrap: should be okay, because probabilities are never NaN.
-    b.sort_by({ |p1, p2| p1.partial_cmp(p2).unwrap() });
+    samples.sort_by({ |p1, p2| p1.partial_cmp(p2).unwrap() });
 
-    let mut partitioned = b
+    // Scale the probabilities from (0, 1] to (0, 2], and make a tuple with (index, prob).
+    let scaled = samples
         .into_iter()
         .map(|p| (f32::from(2.0) * p).fract())
         .zip((0..deck.len()).into_iter())
+        // NOTE: see if you can eliminate this collect_vec().
         .collect_vec();
 
-    partitioned.sort_by(|(p1, _), (p2, _)| p1.partial_cmp(p2).unwrap());
+    let break_point = find_break(&scaled).unwrap_or(scaled.len());
 
-    partitioned
-        .into_iter()
-        .map(|(_, i)| deck[i].clone())
+    // Merge the two partitions together, extract the indices, then copy values from deck.
+    scaled[..break_point]
+        .iter()
+        .merge_by(scaled[break_point..].iter(), |(p1, _), (p2, _)| p1 < p2)
+        .map(|(_, i)| deck[*i].clone())
         .collect_vec()
 }
 
-fn find_break<T>(slice: &[T]) -> Option<usize> where T: PartialOrd {
-    slice.iter().tuple_windows()
+// Return a Vec with size elements randomly selected between (0, 1].
+fn random_samples(size: usize) -> Vec<f32> {
+    let range = Uniform::from(0.0..1.0);
+    let mut rng = rand::thread_rng();
+    std::iter::repeat_with(|| rng.sample(range))
+        .take(size)
+        .collect_vec()
+}
+
+fn find_break<T>(slice: &[T]) -> Option<usize>
+where
+    T: PartialOrd,
+{
+    slice
+        .iter()
+        .tuple_windows()
         .find_position(|(i1, i2)| i1 > i2)
         .map(|(location, _)| location + 1)
 }
@@ -54,15 +69,36 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_basic_shuffle() {
+        let deck = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let samples = vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.51, 0.61, 0.71, 0.81, 0.91];
+        assert_eq!(deck.len(), samples.len());
+
+        assert_eq!(
+            shuffle_with_samples(&deck, samples),
+            vec! { 1, 6, 2, 7, 3, 8, 4, 9, 5, 10}
+        );
+
+        // What if there's no break point?
+        assert_eq!(
+            shuffle_with_samples(
+                &deck,
+                vec![0.0, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13]
+            ),
+            vec! { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
+        );
+    }
+
+    #[test]
     fn test_find_break() {
-        assert_eq!(None, find_break(&vec!{ 0, 1, 2, 3, 4, 5, 6 }));
-        assert_eq!(Some(4), find_break(&vec!{0, 2, 4, 6, 1, 3, 5 }));
-        assert_eq!(Some(5), find_break(&vec!{0, 2, 4, 6, 8, 1}));
-        assert_eq!(Some(1), find_break(&vec!{1, 0, 1, 2, 3}));
+        assert_eq!(None, find_break(&vec! { 0, 1, 2, 3, 4, 5, 6 }));
+        assert_eq!(Some(4), find_break(&vec! {0, 2, 4, 6, 1, 3, 5 }));
+        assert_eq!(Some(5), find_break(&vec! {0, 2, 4, 6, 8, 1}));
+        assert_eq!(Some(1), find_break(&vec! {1, 0, 1, 2, 3}));
 
         // Tests with equal values.
-        assert_eq!(None, find_break(&vec!{ 0, 2, 2, 3, 5, 7}));
-        assert_eq!(Some(3), find_break(&vec!{ 0, 2, 2, 1, 5, 7}));
-        assert_eq!(Some(4), find_break(&vec!{ 0, 2, 4, 6, 2, 4, 6}));
+        assert_eq!(None, find_break(&vec! { 0, 2, 2, 3, 5, 7}));
+        assert_eq!(Some(3), find_break(&vec! { 0, 2, 2, 1, 5, 7}));
+        assert_eq!(Some(4), find_break(&vec! { 0, 2, 4, 6, 2, 4, 6}));
     }
 }
