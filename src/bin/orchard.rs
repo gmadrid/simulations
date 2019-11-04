@@ -1,3 +1,5 @@
+use simulations::{Game, monte_carlo};
+
 use std::collections::HashMap;
 
 use rand::distributions::Uniform;
@@ -58,16 +60,16 @@ impl OrchardDie {
 type FruitLeft = HashMap<OrchardDie, usize>;
 
 #[derive(Debug)]
-struct Game {
+struct Orchard {
     left: FruitLeft,
     raven_path: usize,
-    turns: u16,
+    turns: u32,
     basket_times: usize,
 }
 
-impl Game {
-    fn new(variation: &Variation) -> Game {
-        let mut game = Game {
+impl Orchard {
+    fn new(variation: &Variation) -> Orchard {
+        let mut game = Orchard {
             left: HashMap::new(),
             raven_path: variation.raven_path,
             turns: 0,
@@ -82,10 +84,6 @@ impl Game {
         game.left.insert(Red, variation.init_fruits);
 
         game
-    }
-
-    fn done(&self) -> bool {
-        self.raven_path == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
     }
 
     fn decrement(&mut self, die: OrchardDie) {
@@ -103,6 +101,13 @@ impl Game {
             .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
             .unwrap()
             .0
+    }
+
+}
+
+impl Game for Orchard {
+    fn done(&self) -> bool {
+        self.raven_path == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
     }
 
     fn take_turn(&mut self) {
@@ -123,42 +128,12 @@ impl Game {
     fn achieved_victory(&self) -> bool {
         self.done() && self.raven_path > 0
     }
-}
 
-fn run_simulation() -> (bool, u16) {
-    let mut game = Game::new(&Variation::big_game());
-
-    while !game.done() {
-        game.take_turn();
+    fn turns(&self) -> u32 {
+        self.turns
     }
-
-    (game.achieved_victory(), game.turns)
-}
-
-fn monte_carlo() {
-    let mut times = 0;
-    let mut victories = 0;
-    let mut total_turns: u32 = 0;
-    for i in 0..100000 {
-        if i % 10000 == 0 {
-            println!("{}", i);
-        }
-        times += 1;
-        let (victory, turns) = run_simulation();
-        total_turns += u32::from(turns);
-        if victory {
-            victories += 1;
-        }
-    }
-    println!(
-        "\n{}/{} => {}",
-        victories,
-        times,
-        f64::from(victories) / f64::from(times)
-    );
-    println!("Avg turns: {}", f64::from(total_turns) / f64::from(times));
 }
 
 fn main() {
-    monte_carlo();
+    monte_carlo(|| Orchard::new(&Variation::big_game()));
 }

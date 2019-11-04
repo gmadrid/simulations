@@ -24,7 +24,7 @@ where
     }
 }
 
-fn monte_carlo<F, G>(ng: F) where G: Game, F: Fn() -> G {
+pub fn monte_carlo<F, G>(ng: F) where G: Game, F: Fn() -> G {
     let mut times = 0;
     let mut victories = 0;
     let mut total_turns: u32 = 0;
