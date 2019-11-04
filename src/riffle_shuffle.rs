@@ -11,8 +11,8 @@ use rand::Rng;
 // Note that elements are clone()'d into the destination array, so prefer arrays of
 // types that are cheap to clone (or even better, that are 'Copy').
 pub fn riffle_shuffle<T>(deck: &Vec<T>) -> Vec<T>
-    where
-        T: Clone,
+where
+    T: Clone,
 {
     let range = Uniform::from(0.0..1.0);
     let mut rng = rand::thread_rng();
@@ -34,5 +34,8 @@ pub fn riffle_shuffle<T>(deck: &Vec<T>) -> Vec<T>
 
     partitioned.sort_by(|(p1, _), (p2, _)| p1.partial_cmp(p2).unwrap());
 
-    partitioned.into_iter().map(|(_, i)| deck[i].clone()).collect()
+    partitioned
+        .into_iter()
+        .map(|(_, i)| deck[i].clone())
+        .collect()
 }
