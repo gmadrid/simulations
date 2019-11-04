@@ -24,12 +24,16 @@ where
     }
 }
 
-pub fn monte_carlo<F, G>(ng: F) where G: Game, F: Fn() -> G {
+pub fn monte_carlo<F, G>(iterations: u32, ng: F)
+where
+    G: Game,
+    F: Fn() -> G,
+{
     let mut times = 0;
     let mut victories = 0;
     let mut total_turns: u32 = 0;
 
-    for i in 0..100000 {
+    for i in 0..iterations {
         times += 1;
         if i % 10000 == 0 {
             println!("{}", i);
@@ -47,5 +51,4 @@ pub fn monte_carlo<F, G>(ng: F) where G: Game, F: Fn() -> G {
         f64::from(victories) / f64::from(times)
     );
     println!("Avg turns: {}", f64::from(total_turns) / f64::from(times));
-
 }

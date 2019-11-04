@@ -1,17 +1,56 @@
-use simulations::{Game, monte_carlo};
+use simulations::{monte_carlo, Game};
 
 use std::collections::HashMap;
 
 use rand::distributions::Uniform;
 use rand::Rng;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "orchard")]
+struct Opts {
+    /// True to use the "big" version
+    #[structopt(long)]
+    big: bool,
+
+    /// Number of ravens before you lose
+    #[structopt(short, long)]
+    ravens: Option<u8>,
+
+    /// Number of fruits (of each color) to start with.
+    #[structopt(short, long)]
+    fruits: Option<u8>,
+
+    /// Number of fruits to remove when rolling a basket.
+    #[structopt(long)]
+    basket: Option<u8>,
+
+    /// Number of iterations for the monte carlo simulation.
+    #[structopt(short="n", long, default_value="100000")]
+    iterations: u32,
+}
 
 struct Variation {
-    init_fruits: usize,
-    raven_path: usize,
-    basket_times: usize,
+    init_fruits: u8,
+    raven_path: u8,
+    basket_times: u8,
 }
 
 impl Variation {
+    fn from_opts(opts: &Opts) -> Variation {
+        let mut result = if opts.big {
+            Variation::big_game()
+        } else {
+            Variation::little_game()
+        };
+
+        opts.ravens.map(|v| result.raven_path = v);
+        opts.fruits.map(|v| result.init_fruits = v);
+        opts.basket.map(|v| result.basket_times = v);
+        
+        result
+    }
+
     fn little_game() -> Variation {
         Variation {
             init_fruits: 4,
@@ -57,14 +96,14 @@ impl OrchardDie {
     }
 }
 
-type FruitLeft = HashMap<OrchardDie, usize>;
+type FruitLeft = HashMap<OrchardDie, u8>;
 
 #[derive(Debug)]
 struct Orchard {
     left: FruitLeft,
-    raven_path: usize,
+    raven_path: u8,
     turns: u32,
-    basket_times: usize,
+    basket_times: u8,
 }
 
 impl Orchard {
@@ -102,7 +141,6 @@ impl Orchard {
             .unwrap()
             .0
     }
-
 }
 
 impl Game for Orchard {
@@ -135,5 +173,8 @@ impl Game for Orchard {
 }
 
 fn main() {
-    monte_carlo(|| Orchard::new(&Variation::big_game()));
+    let opts = Opts::from_args();
+    let variation = Variation::from_opts(&opts);
+
+    monte_carlo(opts.iterations, || Orchard::new(&variation));
 }
