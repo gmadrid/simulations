@@ -10,7 +10,7 @@ use rand::Rng;
 
 // Note that elements are clone()'d into the destination array, so prefer arrays of
 // types that are cheap to clone (or even better, that are 'Copy').
-pub fn riffle_shuffle<T>(deck: &Vec<T>) -> Vec<T>
+pub fn riffle_shuffle<T>(deck: &[T]) -> Vec<T>
 where
     T: Clone,
 {
