@@ -1,7 +1,72 @@
+use simulations::{monte_carlo, Game};
+
 use std::collections::HashMap;
 
 use rand::distributions::Uniform;
 use rand::Rng;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "orchard")]
+struct Opts {
+    /// True to use the "big" version
+    #[structopt(long)]
+    big: bool,
+
+    /// Number of ravens before you lose
+    #[structopt(short, long)]
+    ravens: Option<u8>,
+
+    /// Number of fruits (of each color) to start with.
+    #[structopt(short, long)]
+    fruits: Option<u8>,
+
+    /// Number of fruits to remove when rolling a basket.
+    #[structopt(long)]
+    basket: Option<u8>,
+
+    /// Number of iterations for the monte carlo simulation.
+    #[structopt(short="n", long, default_value="100000")]
+    iterations: u32,
+}
+
+struct Variation {
+    init_fruits: u8,
+    raven_path: u8,
+    basket_times: u8,
+}
+
+impl Variation {
+    fn from_opts(opts: &Opts) -> Variation {
+        let mut result = if opts.big {
+            Variation::big_game()
+        } else {
+            Variation::little_game()
+        };
+
+        opts.ravens.map(|v| result.raven_path = v);
+        opts.fruits.map(|v| result.init_fruits = v);
+        opts.basket.map(|v| result.basket_times = v);
+        
+        result
+    }
+
+    fn little_game() -> Variation {
+        Variation {
+            init_fruits: 4,
+            raven_path: 5,
+            basket_times: 1,
+        }
+    }
+
+    fn big_game() -> Variation {
+        Variation {
+            init_fruits: 10,
+            raven_path: 9,
+            basket_times: 2,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum OrchardDie {
@@ -31,37 +96,33 @@ impl OrchardDie {
     }
 }
 
-const RAVEN_PATH_LENGTH: u8 = 5;
-
 type FruitLeft = HashMap<OrchardDie, u8>;
 
 #[derive(Debug)]
-struct Game {
+struct Orchard {
     left: FruitLeft,
-    raven: u8,
-    turns: u16,
+    raven_path: u8,
+    turns: u32,
+    basket_times: u8,
 }
 
-impl Game {
-    fn new() -> Game {
-        let mut game = Game {
+impl Orchard {
+    fn new(variation: &Variation) -> Orchard {
+        let mut game = Orchard {
             left: HashMap::new(),
-            raven: RAVEN_PATH_LENGTH,
+            raven_path: variation.raven_path,
             turns: 0,
+            basket_times: variation.basket_times,
         };
 
         use OrchardDie::*;
 
-        game.left.insert(Yellow, 4);
-        game.left.insert(Green, 4);
-        game.left.insert(Purple, 4);
-        game.left.insert(Red, 4);
+        game.left.insert(Yellow, variation.init_fruits);
+        game.left.insert(Green, variation.init_fruits);
+        game.left.insert(Purple, variation.init_fruits);
+        game.left.insert(Red, variation.init_fruits);
 
         game
-    }
-
-    fn done(&self) -> bool {
-        self.raven == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
     }
 
     fn decrement(&mut self, die: OrchardDie) {
@@ -80,6 +141,12 @@ impl Game {
             .unwrap()
             .0
     }
+}
+
+impl Game for Orchard {
+    fn done(&self) -> bool {
+        self.raven_path == 0 || self.left.iter().all({ |(_, num)| *num == 0 })
+    }
 
     fn take_turn(&mut self) {
         self.turns += 1;
@@ -87,50 +154,27 @@ impl Game {
         let roll = OrchardDie::roll();
         match roll {
             Yellow | Green | Purple | Red => self.decrement(roll),
-            Basket => self.decrement(self.find_max_die()),
-            Raven => self.raven -= 1,
+            Basket => {
+                for _ in 0..self.basket_times {
+                    self.decrement(self.find_max_die());
+                }
+            }
+            Raven => self.raven_path -= 1,
         }
     }
 
     fn achieved_victory(&self) -> bool {
-        self.done() && self.raven > 0
-    }
-}
-
-fn run_simulation() -> (bool, u16) {
-    let mut game = Game::new();
-
-    while !game.done() {
-        game.take_turn();
+        self.done() && self.raven_path > 0
     }
 
-    (game.achieved_victory(), game.turns)
-}
-
-fn monte_carlo() {
-    let mut times = 0;
-    let mut victories = 0;
-    let mut total_turns: u32 = 0;
-    for i in 0..100000 {
-        if i % 10000 == 0 {
-            println!("{}", i);
-        }
-        times += 1;
-        let (victory, turns) = run_simulation();
-        total_turns += u32::from(turns);
-        if victory {
-            victories += 1;
-        }
+    fn turns(&self) -> u32 {
+        self.turns
     }
-    println!(
-        "\n{}/{} => {}",
-        victories,
-        times,
-        f64::from(victories) / f64::from(times)
-    );
-    println!("Avg turns: {}", f64::from(total_turns) / f64::from(times));
 }
 
 fn main() {
-    monte_carlo();
+    let opts = Opts::from_args();
+    let variation = Variation::from_opts(&opts);
+
+    monte_carlo(opts.iterations, || Orchard::new(&variation));
 }

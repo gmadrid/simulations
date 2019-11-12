@@ -8,5 +8,10 @@ default-run = "sherlock"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "simulations"
+
 [dependencies]
+itertools = "0.8.1"
 rand = "0.7.2"
+structopt = "0.3.3"
