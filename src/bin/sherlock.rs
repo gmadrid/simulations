@@ -23,6 +23,7 @@ where
         .zip((0..deck.len()).into_iter())
         .collect();
 
+    // unwrap: should be okay, because probabilities are never NaN.
     partitioned.sort_by(|(p1, _), (p2, _)| p1.partial_cmp(p2).unwrap());
 
     partitioned.into_iter().map(|(_, i)| deck[i]).collect()
