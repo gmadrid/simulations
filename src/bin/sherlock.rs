@@ -1,8 +1,37 @@
+use std::ops::Deref;
+
 use simulations::riffle_shuffle;
 
-fn main() {
-    let deck: Vec<u8> = (1..53).collect();
+#[derive(Debug)]
+struct Deck(Vec<u8>);
 
-    let shuffled = riffle_shuffle(&riffle_shuffle(&deck));
-    println!("{:?}", shuffled);
+impl Deck {
+    fn new() -> Deck {
+        Deck ((1..53).collect())
+    }
+
+    fn riffle_shuffle(&mut self) {
+        let v = riffle_shuffle(&self.0);
+        self.0 = v;
+    }
+}
+
+impl Deref for Deck {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+fn follow_strings() {
+    
+}
+
+fn main() {
+    let mut deck = Deck::new();
+
+    deck.riffle_shuffle();
+    deck.riffle_shuffle();
+    println!("{:?}", deck);
 }
